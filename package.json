@@ -1,0 +1,20 @@
+{
+  "name": "ogp_action_plan_grabber",
+  "version": "1.0.0",
+  "description": "Pulls down Open Government Partnership Action plans and converts them to searchable text",
+  "main": "action-plans.js",
+  "dependencies": {
+    "cheerio": "^0.17.0",
+    "through": "^2.3.6",
+    "tape": "^2.14.0",
+    "request": "^2.42.0",
+    "async": "^0.9.0",
+    "event-stream": "^3.1.7"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
