@@ -1,44 +1,75 @@
 var settings = require('./settings.js');
+var stream = require('stream');
+var through = require('through');
 var request = require('request');
 var cheerio = require('cheerio');
 var async = require('async');
+var eventstream = require('event-stream');
 
-function extractSingleCountryActionPlanURL(data, callback){
-    var URLPrefix = settings.OGP_COUNTRY_ROOT.replace(/(http:\/\/(.*?)\/).*$/, '$1')
-    url = URLPrefix + data.url.replace(/^\/(.*)$/, '$1') + '/action-plan';
+function extractSingleCountryActionPlanURLs(data, callback){
+    url = data.url + '/action-plan';
+
     request(url, function(error, response, html) {
         if(!error && response.statusCode === 200){
-            var $ = cheerio.load(html);
+            var $ = cheerio.load(html);    
+            var out = [];
             $('.view-action-plan-on-country-page .file a').each(function(index, element){
-                console.log($(this).attr('href'));
+                out.push($(this).attr('href'))                
             });
+            callback(null, out);
         }
-        callback();
+        else {
+            callback(new Error('received HTTP ' + response.statusCode + ' response'));
+        }
     });
 }
 
-function collectAllCountryActionPlanURLs(){
-    // use a queue to prevent slamming the server with more than 2 simultaneous requests
-    q = async.queue(extractSingleCountryActionPlanURL, settings.SIMULTANEOUS_WEB_WORKERS);
+var countryURLEmitter = stream.Readable({ objectMode: true });
+countryURLEmitter._read = function(){
+    // only fetch once
+    if(countryURLEmitter.stopFetching!==true){        
 
-    // fetch the country list and iterate through each URL
-    request(settings.OGP_COUNTRY_ROOT, function (error, response, html) {
-        if(!error && response.statusCode === 200){
-            var $ = cheerio.load(html);
-            $('.view-ogp-countries .views-field-title-field .field-content a').each(function(index, element){
-                q.push({
-                    country: $(this).text(),
-                    url: $(this).attr('href')
+        var URLPrefix = settings.OGP_COUNTRY_ROOT.replace(/(http:\/\/(.*?))\/.*$/, '$1')
+        
+        // fetch the country list and iterate through each URL
+        request(settings.OGP_COUNTRY_ROOT, function (error, response, html) {
+        
+            if(!error && response.statusCode === 200){
+                var $ = cheerio.load(html);
+                var countryLinks = $('.view-ogp-countries .views-field-title-field .field-content a');            
+                countryLinks.each(function(index, element){                
+                    // queue up the next country object
+                    var r = countryURLEmitter.push({
+                        url: URLPrefix + $(this).attr('href'),
+                        country: $(this).text()
+                    });
+
+                    // indicate if this is the last link
+                    if(index===(countryLinks.length-1)){
+                        countryURLEmitter.push(null);        
+                    }
                 });
-            });
-        }
-    });
+                
+            }
+        });
+    }
+    // we've made a request, its callback will take things from here
+    countryURLEmitter.stopFetching = true;
 }
+
+var actionPlanExtractor = eventstream.map(extractSingleCountryActionPlanURLs);
 
 module.exports = {
-    collectAllCountryActionPlanURLs: collectAllCountryActionPlanURLs
-}
+    countryURLEmitter: countryURLEmitter,
+    extractSingleCountryActionPlanURLs: extractSingleCountryActionPlanURLs
+};
 
 if (require.main === module) {
-    collectAllCountryActionPlanURLs();
+    var arraySplitter = through(function(data){
+        data.forEach(function(data) {
+            console.log(data);
+        });
+    });
+
+    countryURLEmitter.pipe(actionPlanExtractor).pipe(arraySplitter);
 }
