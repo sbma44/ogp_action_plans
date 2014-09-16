@@ -1,0 +1,4 @@
+node_modules/*
+action_plan_src/*
+action_plan_hits/*
+action_plan_txt
