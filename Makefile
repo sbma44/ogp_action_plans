@@ -4,7 +4,7 @@
 fetch: 
 	cd ./action_plan_src && sh -c "node ../action-plans.js | xargs -I {} curl {} -sO"
 
-match:
+search:
 	rm -rf action_plan_txt
 	mkdir action_plan_txt
 
@@ -27,7 +27,10 @@ match:
 
 	echo "" && echo "*** Complete! Have a look in the action_plan_hits directory for matching files."
 
-all: fetch match
+all: fetch extract
+
+newsearch:
+	rm -f action_plan_hits/*
 
 clean:
 	rm -f action_plan_src/*
