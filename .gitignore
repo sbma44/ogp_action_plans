@@ -1,5 +1,6 @@
 node_modules/*
 .DS_Store
 action_plan_src/*
-action_plan_hits/*
+matches/*
 action_plan_txt
+action_plan_work
